@@ -12,10 +12,11 @@ import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 public class Main {
-    private final static String path = "C:\\Users\\nkolesnikov\\Documents\\spectraLogs\\dxtrade5.default.spectraqa.RTTStatistics.json";
+    private final static String path = "data/dxtrade5.default.sfxprodapp1.RTTStatistics.json";
     private static final String names = "abcdefghijclmnopqrstuvwxyz";
 
     private static int chartNumber = 0;
+    private static int maxAmount = 2000;
 
     public static void main(String[] args) {
         try {
@@ -46,7 +47,9 @@ public class Main {
             System.out.println("Standart deviation: " + standartDeviation(values));
             System.out.println("Standart deviation of the mean: " + standartDeviationOfTheMean(values));
             System.out.println("Amount of sessions for these batches: " + sessions.stream().distinct().count());
-            ImageCharts imageCharts = createLineChart(values);
+            List<Double> avgValues = shorten(values, maxAmount);
+            valuesPerSession.values().forEach(doubles -> shorten(doubles, maxAmount));
+            ImageCharts imageCharts = createLineChart(avgValues);
             imageCharts.toFile("tmp/general-chart.png");
             valuesPerSession.forEach((key, value) -> {
                 if (value.size() < 10) {
@@ -63,7 +66,6 @@ public class Main {
 
             List<Map.Entry<String, List<Double>>> result = valuesPerSession.entrySet().stream().filter((val) -> val.getValue().size() < 50).toList();
             result.forEach(val -> valuesPerSession.remove(val.getKey()));
-
             ImageCharts allCharts = createChartWithMultipleLines(
                     valuesPerSession.values().stream().map(value ->
                             value.stream()
@@ -73,14 +75,26 @@ public class Main {
                                     .collect(Collectors.joining(","))
                     ).collect(Collectors.toList()),
                     valuesPerSession.keySet().stream().toList());
-            allCharts.toFile("chart.png");
-            ImageCharts bvgChart = createBVGChart(values.stream().filter(value->value<500).toList(), 6);
+            //    allCharts.toFile("chart.png");
+            ImageCharts bvgChart = createBVGChart(avgValues.stream().filter(value -> value < 500).toList(), 6);
             bvgChart.toFile("bvg-chart.png");
         } catch (NoSuchAlgorithmException | InvalidKeyException | IOException e) {
             throw new RuntimeException(e);
         }
 
         //
+    }
+
+    public static List<Double> shorten(List<Double> values, int maxAmount){
+        List<Double> avgValues = new ArrayList<>(List.copyOf(values));
+        while (avgValues.size() > maxAmount) {
+            List<Double> tempArray = new ArrayList<>();
+            for (int i = 0; i < avgValues.size(); i += 2) {
+                tempArray.add((avgValues.get(i) + avgValues.get(i++)) / 2);
+            }
+            avgValues = new ArrayList<>(List.copyOf(tempArray));
+        }
+        return avgValues;
     }
 
     public static double standartDeviation(List<Double> values) {
